@@ -1,0 +1,25 @@
+FROM python:3.9.18-slim
+
+
+# Set the working directory
+WORKDIR /mlflow
+
+# Install MLflow
+RUN pip install mlflow
+
+# Set up the SQLite database URI as an environment variable
+ENV BACKEND_URI sqlite:///mlflow.db
+ENV S3_BUCKET_NAME_PATH s3://mlops-s3-bucket-daniel
+
+
+# Expose the port the app runs on
+EXPOSE 5000
+
+# Command to run the MLflow server
+# CMD mlflow ui --backend-store-uri $BACKEND_URI --host 0.0.0.0
+
+
+CMD mlflow server \
+    --backend-store-uri $BACKEND_URI \
+    --default-artifact-root S3_BUCKET_NAME_PATH \
+    --host 0.0.0.0

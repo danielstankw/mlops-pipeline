@@ -1,0 +1,10 @@
+FROM apache/airflow:2.7.1
+
+RUN pip install -U pip --upgrade pip
+# RUN pip install pipenv 
+
+COPY requirements.txt /requirements.txt
+
+RUN pip install --no-cache-dir --user -r /requirements.txt
+
+
