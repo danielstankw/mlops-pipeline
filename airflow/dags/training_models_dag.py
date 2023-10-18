@@ -15,7 +15,7 @@ import logging
 AIRFLOW_HOME  = os.getenv('AIRFLOW_HOME')
 DATASET = 'dataset'
 
-EXPERIMENT_NAME = 'test6'
+EXPERIMENT_NAME = 'test1'
 MLFLOW_TRACKING_URI = "http://mlflow-server:5000"
 
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)

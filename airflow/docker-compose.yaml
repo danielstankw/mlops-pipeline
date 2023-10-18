@@ -242,7 +242,9 @@ services:
       - "5000:5000"
     volumes:
       - mlflow-data:/mlflow # maunt the volume to the /mlflow path in the container
-
+    environment:
+      - AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
 volumes:
   mlflow-data: 
   postgres-db-volume:
