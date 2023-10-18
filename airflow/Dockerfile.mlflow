@@ -18,7 +18,6 @@ EXPOSE 5000
 # Command to run the MLflow server
 # CMD mlflow ui --backend-store-uri $BACKEND_URI --host 0.0.0.0
 
-
 CMD mlflow server \
     --backend-store-uri=$BACKEND_URI \
     --default-artifact-root=$S3_BUCKET_NAME_PATH \
