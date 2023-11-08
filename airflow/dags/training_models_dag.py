@@ -4,35 +4,26 @@ from airflow.decorators import task, dag
 import pandas as pd
 import optuna
 import xgboost as xgb
-import mlflow
-from mlflow.tracking import MlflowClient
+from airflow.utils.dates import days_ago
 
+import mlflow
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.metrics import  f1_score
 from datetime import datetime
 import logging
 
+
+EXPERIMENT_NAME = 'experiment-0'
+
 AIRFLOW_HOME  = os.getenv('AIRFLOW_HOME')
 DATASET = 'dataset'
-
-EXPERIMENT_NAME = 'test1'
 MLFLOW_TRACKING_URI = "http://mlflow-server:5000"
-
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-client = MlflowClient(MLFLOW_TRACKING_URI)
-
-logging.info("MLflow trackng URI: %s", mlflow.get_tracking_uri())
-
-# set an experiment, if it doesnt exist create one
-# str_time_now = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-# exp_name = EXPERIMENT_NAME + '_' + str_time_now
-exp_name = EXPERIMENT_NAME
-mlflow.set_experiment(exp_name)
-logging.info("Experiment was set as: %s", exp_name)
 
 
 logging.basicConfig(level=logging.INFO,
                     format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s')
+
+
 
 default_args = {
     'owner': 'airflow',
@@ -43,16 +34,30 @@ default_args = {
     'retry_delay': timedelta(minutes=2)}
 
 
-@dag('training_dag_v3',
+@dag('training_dag_v6',
     default_args=default_args,
     description='A DAG for optuna hyperprameter tunning of the model',
     schedule_interval=None,#timedelta(days=1),
-    start_date=datetime(2023, 10, 9),
+    start_date=days_ago(1),
     catchup=False,
-    tags = ['diabetes'],
+    tags = ['diabetes-mlops'],
     dagrun_timeout=timedelta(minutes=10))
 
 def train_models():
+
+    @task()
+    def init_mlflow():
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        logging.info("MLflow tracking URI set to: %s", mlflow.get_tracking_uri())
+
+        mlflow.set_experiment(EXPERIMENT_NAME)
+        logging.info("Experiment was set to: %s", EXPERIMENT_NAME)
+
+        # Get the experiment details
+        experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
+        # Extract the artifact location
+        artifact_location = experiment.artifact_location
+        logging.info("Artifact location was set to: %s", artifact_location)
 
     def load_prepare_data_for_training():
 
@@ -62,7 +67,7 @@ def train_models():
         logging.info("Training data loaded from: %s", os.path.join(dataset_path, 'df_train.csv'))
 
         df_val = pd.read_csv(os.path.join(dataset_path, 'df_val.csv'))
-        logging.info("Validation data loaded from: %s", os.path.join(dataset_path, 'df_valid.csv'))
+        logging.info("Validation data loaded from: %s", os.path.join(dataset_path, 'df_val.csv'))
 
 
         target = 'diabetes'
@@ -92,6 +97,7 @@ def train_models():
           
     @task()
     def optimize_params(n_trials=3):
+            
 
         logging.info("Default artifacts URI: %s", mlflow.get_artifact_uri())
 
@@ -109,7 +115,7 @@ def train_models():
 
             with mlflow.start_run():
 
-                logging.info("Starting trial: %s", trial)
+                logging.info("Starting trial #: %s", trial.number)
                 
                 mlflow.set_tag("model", "xgboost")
 
@@ -133,7 +139,7 @@ def train_models():
                     params=combined_params,
                     dtrain=dtrain,
                     evals=[(dvalid, "validation")],
-                    verbose_eval=False,
+                    verbose_eval=100,
                     early_stopping_rounds=10,
                     num_boost_round=500#1000
                 )
@@ -160,10 +166,13 @@ def train_models():
 
         return 
 
-
+  
     # study = optimize_params(dtrain, y_train, dvalid, y_val, n_trials=2)
-    optimize_params(n_trials=2)
+    initialize_mlflow_task = init_mlflow()
+    optimization_task = optimize_params(n_trials=2)
 
+    # Set the task dependencies
+    initialize_mlflow_task >> optimization_task
 
 training_dag = train_models()
 
